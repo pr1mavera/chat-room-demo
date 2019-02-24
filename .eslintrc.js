@@ -42,6 +42,7 @@ module.exports = {
     'prefer-promise-reject-errors': ['error', {'allowEmptyReject': true}],
     'no-extend-native': ['error', { 'exceptions': ['Object', 'String'] }],
     'brace-style': 0,
-    'no-cond-assign': 0
+    'no-cond-assign': 0,
+    'space-in-parens': 0
   }
 }

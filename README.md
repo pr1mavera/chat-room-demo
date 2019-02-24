@@ -1,6 +1,6 @@
 # chat-room-demo
 
-> A Vue.js project
+> A chat room demo,build for practice the design ability about the Data, the Service, the Observable data pipeline and the Association between data
 
 ## Build Setup
 
