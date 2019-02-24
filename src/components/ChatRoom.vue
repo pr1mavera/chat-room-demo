@@ -199,7 +199,34 @@ export default {
             const getSystemMsgBodys = pipe( getContent, contentDecompose, systemMsgParse )
             const msgMapperFns = [ getCustomMsgBodys, getSystemMsgBodys ]
 
-            // 消息解析管道
+            /**
+             *   消息解析管道
+             *   msgs: [
+             *       {
+             *           fromAccount: 'administrator' || Any,
+             *           elems: [ Msg.Elem ]
+             *       }, :Msg
+             *       ...
+             *   ]
+             *   category -> [
+             *                   customMsgs: [ Msg.Elem ],
+             *                   systemMsgs: [ Msg.Elem ]
+             *               ]
+             *   zip ->  [
+             *               customMsgs: [
+             *                   getCustomMsgBodys: Function,
+             *                   [ Msg.Elem ]
+             *               ],
+             *               systemMsgs: [
+             *                   getSystemMsgBodys: Function,
+             *                   [ Msg.Elem ]
+             *               ],
+             *           ]
+             *   map ->  [
+             *               customMsgs: [ Msg.Elem ].map(getCustomMsgBodys),
+             *               systemMsgs: [ Msg.Elem ].map(getSystemMsgBodys),
+             *           ]
+             */
             const [ customMsgs, systemMsgs ] = pipe(
                 category,
                 curry( zip )( msgMapperFns ),
