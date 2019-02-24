@@ -43,6 +43,8 @@ module.exports = {
     'no-extend-native': ['error', { 'exceptions': ['Object', 'String'] }],
     'brace-style': 0,
     'no-cond-assign': 0,
-    'space-in-parens': 0
+    'space-in-parens': 0,
+    'no-unexpected-multiline': 0,
+    'func-call-spacing': ['error', 'never']
   }
 }

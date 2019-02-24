@@ -1,16 +1,37 @@
 <template>
     <div class="chat-room">
-        <button @click="add">搞搞搞</button>
+        <!-- <button @click="add">搞搞搞</button> -->
         <section class="session-wrapper">
             <ul>
-                <li class="custom" :key="id" v-for="({ id, avatar, name, origin }) in customList">
+                <li class="custom" :key="id" v-for="({ id, avatar, name, origin }, index) in customList">
                     <tab
                         :avatar="avatar"
                         :name="name"
                         :origin="origin"
                     ></tab>
+                    <div class="line" v-show="index !== customList.length - 1"></div>
                 </li>
             </ul>
+        </section>
+        <section class="msgs-wrapper">
+            <div class="msgs-container">
+                <ul>
+                    <li class="msg block"></li>
+                    <li class="msg" :style="{'flex-direction': msg.isSelfSend ? 'row-reverse' : 'row'}" :key="index" v-for="(msg, index) in msgsList">
+                        <div class="avatar">
+                            <img src="https://video-uat.ihxlife.com/user-server/api/v1/video/image/csHeader?id=1007">
+                        </div>
+                        <div class="msg-body" :style="{'align-items': msg.isSelfSend ? 'flex-end' : 'flex-start'}">
+                            <p class="name" :style="{'text-align': msg.isSelfSend ? 'right' : 'left'}">{{msg.nickName}}</p>
+                            <p class="body">{{msg.content}}</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <div class="input-wrapper">
+                <textarea class="input" type="text"></textarea>
+                <button class="commit">发送</button>
+            </div>
         </section>
     </div>
 </template>
@@ -28,10 +49,8 @@ import {
 import IM from '@/server/im'
 
 import {
-    trace,
     curry,
     uncurry,
-    partialRight,
     pipe,
     prop,
     map,
@@ -47,20 +66,24 @@ export default {
         'Tab': () => import('@/components/Tab.vue')
     },
     computed: {
-        // sessionsCustomInfo() {
-        //     const getAllCustomInfo = sessionId => this.customInfo[sessionId]
-        //     return this.sessionList.list.map(getAllCustomInfo)
-        // }
+        customList() {
+            const getAllCustomInfo = sessionId => this.customInfoHeap[sessionId]
+            return this.sessions.list.map(getAllCustomInfo)
+        },
+        msgsList() {
+            const curSession = this.sessions.list[this.sessions.curIndex]
+            return this.msgsHeap[curSession]
+        }
     },
     data() {
         return {
-            customList: [],
+            // customList: [],
             /**
              * 原始数据 vuex
              */
             sessions$: null,
             sessions: {
-                list: ['1234'],
+                list: ['1234', '2345'],
                 curIndex: 0
             },
             sessionsHeap: {
@@ -95,8 +118,8 @@ export default {
             msgsHeap: {
                 '1234': [
                     {
-                        nickName: '老铁',
-                        content: '老铁，给刷个火箭呗',
+                        nickName: '客服',
+                        content: '老铁，给刷个火箭呗，老铁给整个呗！！，老铁给整个呗！！，老铁给整个呗！！，老铁给整个呗！！，老铁给整个呗！！',
                         isSelfSend: true,
                         time: new Date().getTime(),
                         msgStatus: msgStatus.msg,
@@ -104,7 +127,31 @@ export default {
                     },
                     {
                         nickName: '老铁',
-                        content: '666',
+                        content: '666老铁，给刷个火箭呗，老铁给整个呗！！，老铁给整个呗！！，老铁给',
+                        isSelfSend: false,
+                        time: new Date().getTime(),
+                        msgStatus: msgStatus.msg,
+                        msgType: msgTypes.msg_normal
+                    },
+                    {
+                        nickName: '老铁',
+                        content: '得嘞',
+                        isSelfSend: false,
+                        time: new Date().getTime(),
+                        msgStatus: msgStatus.msg,
+                        msgType: msgTypes.msg_normal
+                    },
+                    {
+                        nickName: '客服',
+                        content: '老铁，给刷个火箭呗，老铁给整个呗！！，老铁给整个呗！！，老铁给整个呗！！，老铁给整个呗！！，老铁给整个呗！！',
+                        isSelfSend: true,
+                        time: new Date().getTime(),
+                        msgStatus: msgStatus.msg,
+                        msgType: msgTypes.msg_normal
+                    },
+                    {
+                        nickName: '老铁',
+                        content: '666老铁，给刷个火箭呗，老铁给整个呗！！，老铁给整个呗！！，老铁给',
                         isSelfSend: false,
                         time: new Date().getTime(),
                         msgStatus: msgStatus.msg,
@@ -231,7 +278,8 @@ export default {
                 category,
                 curry( zip )( msgMapperFns ),
                 map( spreadArgs( uncurryMapFn ) )
-            )( msgs )
+            ) // eslint-disable-line
+            ( msgs )
 
             // contentDecompose :: { 'data': String, 'desc': String, 'ext': String } -> [ 'data': Object, 'desc': Object, 'ext': Object ]
             // 解析content, 转 JSON 为 js 对象
@@ -272,8 +320,8 @@ export default {
                         ? [ custom, system.concat(item.elems) ]
                         : [ custom.concat(item.elems), system ]
                     }
-                )
-                ( [[], []] )
+                ) // eslint-disable-line
+                ( [[], []] ) // eslint-disable-line
                 ( arr )
             }
 
@@ -284,5 +332,130 @@ export default {
 </script>
 
 <style lang="less">
-
+.chat-room {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: auto;
+    width: 800px;
+    height: 700px;
+    background: #eee;
+    display: flex;
+    .session-wrapper {
+        flex-shrink: 0;
+        width: 250px;
+        height: 100%;
+        background-color: #ddd;
+        ul > li.custom {
+            position: relative;
+            .line {
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                margin: auto;
+                width: calc(~'100% - 40px');
+                height: 1px;
+                background: #bbb;
+            }
+        }
+    }
+    .msgs-wrapper {
+        flex-shrink: 1;
+        width: 100%;
+        height: 100%;
+        background-color: #eee;
+        display: flex;
+        flex-direction: column;
+        .msgs-container {
+            flex-shrink: 1;
+            width: 100%;
+            height: 100%;
+            // padding: 0 20px;
+            // box-sizing: border-box;
+            overflow: auto;
+            ul > li.msg {
+                display: flex;
+                margin-bottom: 20px;
+                &.block {
+                    width: 100%;
+                }
+                .avatar {
+                    flex-shrink: 0;
+                    width: 60px;
+                    height: 60px;
+                    padding: 0 20px;
+                    img {
+                        width: 100%;
+                        height: 100%;
+                        object-fit: cover;
+                        border-radius: 50%;
+                    }
+                }
+                .msg-body {
+                    flex-shrink: 1;
+                    width: 100%;
+                    display: flex;
+                    flex-direction: column;
+                    .name {
+                        font-size: 12px;
+                        line-height: 18px;
+                        color: #555;
+                    }
+                    .body {
+                        position: relative;
+                        display: inline-block;
+                        max-width: 60%;
+                        padding: 16px;
+                        border-radius: 4px;
+                        margin-top: 5px;
+                        font-size: 15px;
+                        line-height: 20px;
+                        background-color: lightsteelblue;
+                    }
+                }
+            }
+        }
+        .input-wrapper {
+            position: relative;
+            flex-shrink: 0;
+            width: 100%;
+            height: 180px;
+            // background-color: #000;
+            border-top: 1px solid #ccc;
+            .input {
+                // width: 100%;
+                // height: 100%;
+                width: calc(~'100% - 20px');
+                height: calc(~'100% - 70px');
+                resize: none;
+                overflow: auto;
+                border: 0;
+                padding: 0;
+                margin: 10px 10px 60px;
+                // box-sizing: border-box;
+                background-color: unset;
+                font-size: 14px;
+                line-height: 22px;
+                outline: none;
+            }
+            .commit {
+                position: absolute;
+                bottom: 12px;
+                right: 10px;
+                width: 110px;
+                height: 36px;
+                margin: 0;
+                padding: 0;
+                border-radius: 5px;
+                color: dodgerblue;
+                border: 1px solid dodgerblue;
+                font-size: 14px;
+                outline: none;
+            }
+        }
+    }
+}
 </style>
