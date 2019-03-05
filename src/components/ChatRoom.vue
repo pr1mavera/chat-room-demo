@@ -1,6 +1,7 @@
 <template>
     <div class="chat-room">
-        <!-- <button @click="add">搞搞搞</button> -->
+        <!-- <button @click="add">搞搞搞</button>
+        <p>{{config.arr[0].name}}</p> -->
         <section class="session-wrapper">
             <ul>
                 <li class="custom" :key="id" v-for="({ id, avatar, name, origin }, index) in customList">
@@ -37,9 +38,10 @@
 </template>
 
 <script>
+import { mapGetters } from 'vuex'
+
 import {
-    ERR_OK,
-    getLoginInfo
+    ERR_OK, getLoginInfo
 } from '@/server'
 
 import {
@@ -49,135 +51,152 @@ import {
 import IM from '@/server/im'
 
 import {
-    curry,
-    uncurry,
-    pipe,
-    prop,
-    map,
-    reduce,
-    zip,
-    spreadArgs
+    curry, uncurry, pipe, prop, map, reduce, zip, each, spreadArgs, unboundMethod
 } from '@/common/js/fp'
 
-// const Rx = require('rxjs-es')
+import {
+    formatDate, randomMin2Max
+} from '@/common/js/dateConfig'
+
+import EventEmitter from '@/common/js/EventEmitter'
+
+import msgsOperators from '@/common/js/operators/msgs'
+import connectOperators from '@/common/js/operators/connect'
+import disconnectOperators from '@/common/js/operators/disconnect'
+import summaryOperators from '@/common/js/operators/summary'
+
+const Rx = require('rxjs-es')
 
 export default {
     components: {
         'Tab': () => import('@/components/Tab.vue')
     },
     computed: {
+        ...mapGetters([
+            'sessions',
+            'sessionsHeap',
+            'customInfoHeap',
+            'msgsHeap',
+            'summaryHeap'
+        ]),
         customList() {
-            const getAllCustomInfo = sessionId => this.customInfoHeap[sessionId]
-            return this.sessions.list.map(getAllCustomInfo)
+            const sessionsList = this.sessions.list
+            return sessionsList.map(id => this.customInfoHeap[id])
         },
         msgsList() {
-            const curSession = this.sessions.list[this.sessions.curIndex]
-            return this.msgsHeap[curSession]
+            const { list, curIndex } = this.sessions
+            return this.msgsHeap[list[curIndex]]
         }
     },
     data() {
         return {
             // customList: [],
+            // msgsList: [],
+            /**
+             * stream
+             */
+            // sessions$: null,
+            // customInfo$: null,
+            // msgs$: null,
+            emitter: null,
             /**
              * 原始数据 vuex
              */
-            sessions$: null,
-            sessions: {
-                list: ['1234', '2345'],
-                curIndex: 0
-            },
-            sessionsHeap: {
-                '1234': {
-                    customId: '1234',
-                    connect: true,
-                    lastActiveTime: 0,
-                    badge: 0
-                },
-                '2345': {
-                    customId: '2435',
-                    connect: true,
-                    lastActiveTime: 0,
-                    badge: 0
-                }
-            },
-            customInfo$: null,
-            customInfoHeap: {
-                '1234': {
-                    id: '1234',
-                    name: '老铁',
-                    avatar: 'https://video-uat.ihxlife.com/user-server/api/v1/video/image/csHeader?id=1007',
-                    origin: 'WE'
-                },
-                '2345': {
-                    id: '2345',
-                    name: '齐德龙东强',
-                    avatar: 'https://video-uat.ihxlife.com/user-server/api/v1/video/image/csHeader?id=1007',
-                    origin: 'WE'
-                }
-            },
-            msgsHeap: {
-                '1234': [
-                    {
-                        nickName: '客服',
-                        content: '老铁，给刷个火箭呗，老铁给整个呗！！，老铁给整个呗！！，老铁给整个呗！！，老铁给整个呗！！，老铁给整个呗！！',
-                        isSelfSend: true,
-                        time: new Date().getTime(),
-                        msgStatus: msgStatus.msg,
-                        msgType: msgTypes.msg_normal
-                    },
-                    {
-                        nickName: '老铁',
-                        content: '666老铁，给刷个火箭呗，老铁给整个呗！！，老铁给整个呗！！，老铁给',
-                        isSelfSend: false,
-                        time: new Date().getTime(),
-                        msgStatus: msgStatus.msg,
-                        msgType: msgTypes.msg_normal
-                    },
-                    {
-                        nickName: '老铁',
-                        content: '得嘞',
-                        isSelfSend: false,
-                        time: new Date().getTime(),
-                        msgStatus: msgStatus.msg,
-                        msgType: msgTypes.msg_normal
-                    },
-                    {
-                        nickName: '客服',
-                        content: '老铁，给刷个火箭呗，老铁给整个呗！！，老铁给整个呗！！，老铁给整个呗！！，老铁给整个呗！！，老铁给整个呗！！',
-                        isSelfSend: true,
-                        time: new Date().getTime(),
-                        msgStatus: msgStatus.msg,
-                        msgType: msgTypes.msg_normal
-                    },
-                    {
-                        nickName: '老铁',
-                        content: '666老铁，给刷个火箭呗，老铁给整个呗！！，老铁给整个呗！！，老铁给',
-                        isSelfSend: false,
-                        time: new Date().getTime(),
-                        msgStatus: msgStatus.msg,
-                        msgType: msgTypes.msg_normal
-                    },
-                    {
-                        nickName: '老铁',
-                        content: '得嘞',
-                        isSelfSend: false,
-                        time: new Date().getTime(),
-                        msgStatus: msgStatus.msg,
-                        msgType: msgTypes.msg_normal
-                    }
-                ],
-                '2345': [
-                    {
-                        nickName: '齐德龙东强',
-                        content: '类吼哇',
-                        isSelfSend: false,
-                        time: new Date().getTime(),
-                        msgStatus: msgStatus.msg,
-                        msgType: msgTypes.msg_normal
-                    }
-                ]
-            },
-            summaryHeap: {}
+            // sessions: {
+            //     list: [],
+            //     curIndex: 0
+            // },
+            // sessionsHeap: {
+            //     '1234': {
+            //         customId: '1234',
+            //         connect: true,
+            //         lastActiveTime: 0,
+            //         badge: 0
+            //     },
+            //     '2345': {
+            //         customId: '2435',
+            //         connect: true,
+            //         lastActiveTime: 0,
+            //         badge: 0
+            //     }
+            // },
+            // customInfoHeap: {
+            //     // '1234': {
+            //     //     id: '1234',
+            //     //     name: '老铁',
+            //     //     avatar: 'https://video-uat.ihxlife.com/user-server/api/v1/video/image/csHeader?id=1007',
+            //     //     origin: 'WE'
+            //     // },
+            //     // '2345': {
+            //     //     id: '2345',
+            //     //     name: '齐德龙东强',
+            //     //     avatar: 'https://video-uat.ihxlife.com/user-server/api/v1/video/image/csHeader?id=1007',
+            //     //     origin: 'WE'
+            //     // }
+            // },
+            // msgsHeap: {
+            //     // '1234': [
+            //     //     {
+            //     //         nickName: '客服',
+            //     //         content: '老铁，给刷个火箭呗，老铁给整个呗！！，老铁给整个呗！！，老铁给整个呗！！，老铁给整个呗！！，老铁给整个呗！！',
+            //     //         isSelfSend: true,
+            //     //         time: new Date().getTime(),
+            //     //         msgStatus: msgStatus.msg,
+            //     //         msgType: msgTypes.msg_normal
+            //     //     },
+            //     //     {
+            //     //         nickName: '老铁',
+            //     //         content: '666老铁，给刷个火箭呗，老铁给整个呗！！，老铁给整个呗！！，老铁给',
+            //     //         isSelfSend: false,
+            //     //         time: new Date().getTime(),
+            //     //         msgStatus: msgStatus.msg,
+            //     //         msgType: msgTypes.msg_normal
+            //     //     },
+            //     //     {
+            //     //         nickName: '老铁',
+            //     //         content: '得嘞',
+            //     //         isSelfSend: false,
+            //     //         time: new Date().getTime(),
+            //     //         msgStatus: msgStatus.msg,
+            //     //         msgType: msgTypes.msg_normal
+            //     //     },
+            //     //     {
+            //     //         nickName: '客服',
+            //     //         content: '老铁，给刷个火箭呗，老铁给整个呗！！，老铁给整个呗！！，老铁给整个呗！！，老铁给整个呗！！，老铁给整个呗！！',
+            //     //         isSelfSend: true,
+            //     //         time: new Date().getTime(),
+            //     //         msgStatus: msgStatus.msg,
+            //     //         msgType: msgTypes.msg_normal
+            //     //     },
+            //     //     {
+            //     //         nickName: '老铁',
+            //     //         content: '666老铁，给刷个火箭呗，老铁给整个呗！！，老铁给整个呗！！，老铁给',
+            //     //         isSelfSend: false,
+            //     //         time: new Date().getTime(),
+            //     //         msgStatus: msgStatus.msg,
+            //     //         msgType: msgTypes.msg_normal
+            //     //     },
+            //     //     {
+            //     //         nickName: '老铁',
+            //     //         content: '得嘞',
+            //     //         isSelfSend: false,
+            //     //         time: new Date().getTime(),
+            //     //         msgStatus: msgStatus.msg,
+            //     //         msgType: msgTypes.msg_normal
+            //     //     }
+            //     // ],
+            //     // '2345': [
+            //     //     {
+            //     //         nickName: '齐德龙东强',
+            //     //         content: '类吼哇',
+            //     //         isSelfSend: false,
+            //     //         time: new Date().getTime(),
+            //     //         msgStatus: msgStatus.msg,
+            //     //         msgType: msgTypes.msg_normal
+            //     //     }
+            //     // ]
+            // },
+            // summaryHeap: {}
         }
     },
     async mounted() {
@@ -185,21 +204,40 @@ export default {
         const info = await this.getUserSig('webchat2')
         // IM 登录
         this.initIM(info)
+        // 初始化事件响应器，绑定对应流的关联关系
+        this.initEventWithStreamBinded()
 
-        // this.sessions$ = Rx.Observable.of(this.sessions.list)
-        // this.customInfo$ = Rx.Observable.of(this.customInfoHeap)
+        // this.sessions$ = new Rx.BehaviorSubject(this.sessions)
+        //                        .subscribe(data => {
+        //                            this.sessions = data
+        //                        })
+        // this.customInfo$ = new Rx.BehaviorSubject(this.customInfoHeap)
+        //                         .subscribe(data => {
+        //                             this.customInfoHeap = data
+        //                         })
+        // this.msgs$ = new Rx.BehaviorSubject(this.msgsHeap)
+        //                     .subscribe(data => {
+        //                         this.msgsHeap = data
+        //                     })
 
-        // const stream$ = Rx.Observable.combineLatest(this.sessions$, this.customInfo$)
-        //             .map(([sessions, customInfo]) => sessions.map(sessionId => customInfo[sessionId]))
+        // Rx.Observable.combineLatest(this.sessions$, this.customInfo$)
+        //             .map(([sessions, customInfo]) => sessions.list.map(sessionId => customInfo[sessionId]))
         //             .subscribe(res => {
         //                 this.customList = res
         //             })
+
+        // Rx.Observable.combineLatest(this.sessions$, this.msgs$)
+        //             .map(([sessions, msgs]) => msgs[sessions.list[sessions.curIndex]])
+        //             .subscribe(res => {
+        //                 this.msgsList = res
+        //             })
     },
     methods: {
-        add() {
-            debugger
-            this.sessions$.next(['1234', '2345'])
-        },
+        // add() {
+        //     const arr = this.config.arr.splice(0, 1)[0]
+        //     arr.name = 222
+        //     this.config.arr[0] = arr
+        // },
         async getUserSig(userId) {
             const res = await getLoginInfo(userId)
             if (res.result.code === ERR_OK) {
@@ -234,9 +272,82 @@ export default {
         },
         onMsgNotify(msgs) {
             const { customMsgs, systemMsgs } = this.parseMsgs(msgs)
-            debugger
+            // const self = this
+            systemMsgs.length && systemMsgs.map(systMsg => {
+                if (+systMsg.code === 22) {
+                    const sessionId = this.getRamSessionId()
+                    const msg = {
+                        userId: systMsg.userId,
+                        msgBody: {
+                            data: {
+                                code: 23,
+                                csId: 'webchat2',
+                                csName: '王效雷',
+                                csNick: '王效雷',
+                                sessionId
+                            },
+                            desc: '王效雷会话创建成功了',
+                            ext: ''
+                        }
+                    }
+                    IM.sendSystemMsg(msg)
+                    this.emitter.emit('connect', systMsg)
+                }
+                else if (+systMsg.code === 25) {
+                    const msg = {
+                        userId: systMsg.userId,
+                        msgBody: {
+                            data: {
+                                code: 24
+                            },
+                            desc: '王效雷会话结束了',
+                            ext: ''
+                        }
+                    }
+                    IM.sendSystemMsg(msg)
+                    this.emitter.emit('disconnect', systMsg)
+                }
+            })
+
+            customMsgs.length && customMsgs.map(msg => this.emitter.emit('msgs', msg))
         },
-        parseMsgs(msgs) {
+        initEventWithStreamBinded() {
+            // 获取事件响应器
+            this.emitter = EventEmitter.getInstance()
+            // 事件列表
+            const events = [ 'msgs', 'connect', 'disconnect', 'summary' ]
+
+            const makeObservableFromEvent = curry( Rx.Observable.fromEvent, 2 )( this.emitter )
+            const mapObservable = uncurry( map )
+
+            const observableMapperFns = [ msgsOperators, connectOperators, disconnectOperators, summaryOperators ]
+
+            const [ msgs$, connect$, disconnect$, summary$ ] = pipe(
+                map( makeObservableFromEvent ),
+                curry( zip )( observableMapperFns ),
+                map( spreadArgs( mapObservable ) )
+            )
+            ( events )
+
+            const subscribeToObservable = pipe( unboundMethod, uncurry )( 'subscribe', 2 )
+
+            // !!SIDE EFFECTS!!
+            each( spreadArgs( subscribeToObservable ) )
+                ( zip(
+                    [ () => {}, () => {}, () => {}, () => {} ],
+                    [ msgs$, connect$, disconnect$, summary$ ]
+                ) )
+        },
+        getRamSessionId() {
+            const date = formatDate('yyyy-MM-dd-hh-mm-ss-SSS').split(/-/g).join('')
+            const ram = randomMin2Max(100000, 999999)
+            return `1${date}${ram}`
+        },
+        /**
+         * desc: onMsgNotify 消息解析
+         * sign: parseMsgs :: Array: [ msgs ] -> { customMsgs: [ { msg }, ... ], systemMsgs: [ { msg }, ... ] }
+         */
+        parseMsgs: (function() {
             const getProp = key => curry(prop, 2)(key)
 
             const uncurryMapFn = uncurry( map )
@@ -246,49 +357,14 @@ export default {
             const getSystemMsgBodys = pipe( getContent, contentDecompose, systemMsgParse )
             const msgMapperFns = [ getCustomMsgBodys, getSystemMsgBodys ]
 
-            /**
-             *   消息解析管道
-             *   msgs: [
-             *       {
-             *           fromAccount: 'administrator' || Any,
-             *           elems: [ Msg.Elem ]
-             *       }, :Msg
-             *       ...
-             *   ]
-             *   category -> [
-             *                   customMsgs: [ Msg.Elem ],
-             *                   systemMsgs: [ Msg.Elem ]
-             *               ]
-             *   zip ->  [
-             *               customMsgs: [
-             *                   getCustomMsgBodys: Function,
-             *                   [ Msg.Elem ]
-             *               ],
-             *               systemMsgs: [
-             *                   getSystemMsgBodys: Function,
-             *                   [ Msg.Elem ]
-             *               ],
-             *           ]
-             *   map ->  [
-             *               customMsgs: [ Msg.Elem ].map(getCustomMsgBodys),
-             *               systemMsgs: [ Msg.Elem ].map(getSystemMsgBodys),
-             *           ]
-             */
-            const [ customMsgs, systemMsgs ] = pipe(
-                category,
-                curry( zip )( msgMapperFns ),
-                map( spreadArgs( uncurryMapFn ) )
-            ) // eslint-disable-line
-            ( msgs )
-
             // contentDecompose :: { 'data': String, 'desc': String, 'ext': String } -> [ 'data': Object, 'desc': Object, 'ext': Object ]
             // 解析content, 转 JSON 为 js 对象
             function contentDecompose(content) {
                 const keyArr = ['data', 'desc', 'ext']
                 return keyArr.map(
-                    key => content[key].match(/{/)
+                    key => content[key] && content[key].match(/{/)
                             ? JSON.parse(content[key])
-                            : content[key]
+                            : content[key] || {}
                 )
             }
 
@@ -315,18 +391,53 @@ export default {
             // 消息分类成 C2C消息 和 系统消息
             function category(arr) {
                 return reduce(
-                    ([ custom, system ], item) => {
-                        return item.fromAccount === 'administrator'
-                        ? [ custom, system.concat(item.elems) ]
-                        : [ custom.concat(item.elems), system ]
-                    }
+                    ([ custom, system ], item) => item.fromAccount === 'administrator'
+                                                    ? [ custom, system.concat(item.elems) ]
+                                                    : [ custom.concat(item.elems), system ]
                 ) // eslint-disable-line
                 ( [[], []] ) // eslint-disable-line
                 ( arr )
             }
 
-            return { customMsgs, systemMsgs }
-        }
+            return function parseMsgsPipe(msgs) {
+                /**
+                 *   消息解析管道
+                 *   msgs: [
+                 *       {
+                 *           fromAccount: 'administrator' || Any,
+                 *           elems: [ Msg.Elem ]
+                 *       }, :Msg
+                 *       ...
+                 *   ]
+                 *   category -> [
+                 *                   customMsgs: [ Msg.Elem ],
+                 *                   systemMsgs: [ Msg.Elem ]
+                 *               ]
+                 *   zip ->  [
+                 *               customMsgs: [
+                 *                   getCustomMsgBodys: Function,
+                 *                   [ Msg.Elem ]
+                 *               ],
+                 *               systemMsgs: [
+                 *                   getSystemMsgBodys: Function,
+                 *                   [ Msg.Elem ]
+                 *               ],
+                 *           ]
+                 *   map ->  [
+                 *               customMsgs: [ Msg.Elem ].map(getCustomMsgBodys),
+                 *               systemMsgs: [ Msg.Elem ].map(getSystemMsgBodys),
+                 *           ]
+                 */
+                const [ customMsgs, systemMsgs ] = pipe(
+                    category,
+                    curry( zip )( msgMapperFns ),
+                    map( spreadArgs( uncurryMapFn ) )
+                ) // eslint-disable-line
+                ( msgs )
+
+                return { customMsgs, systemMsgs }
+            }
+        })()
     }
 }
 </script>
