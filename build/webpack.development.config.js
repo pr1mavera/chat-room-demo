@@ -1,0 +1,61 @@
+const path = require('path')
+const utils = require('./utils')
+const webpack = require('webpack')
+const config = require('../config')
+const CopyWebpackPlugin = require('copy-webpack-plugin')
+const FriendlyErrorsPlugin = require('friendly-errors-webpack-plugin')
+
+const HOST = process.env.HOST
+const PORT = process.env.PORT && Number(process.env.PORT)
+
+module.exports = {
+    devtool: config.dev.devtool,
+    devServer: {
+        clientLogLevel: 'warning',
+        historyApiFallback: {
+            rewrites: [{
+                from: /.*/,
+                to: path.posix.join(config.dev.assetsPublicPath, 'index.html')
+            }],
+        },
+        // https: true,
+        hot: true,
+        contentBase: false,
+        compress: true,
+        host: HOST || config.dev.host,
+        port: PORT || config.dev.port,
+        open: config.dev.autoOpenBrowser,
+        overlay: config.dev.errorOverlay ? {
+            warnings: false,
+            errors: true
+        } : false,
+        publicPath: config.dev.assetsPublicPath,
+        proxy: config.dev.proxyTable,
+        quiet: true, // necessary for FriendlyErrorsPlugin
+        watchOptions: {
+            poll: config.dev.poll
+        }
+    },
+    plugins: [
+        new webpack.DefinePlugin({
+            'process.env': require('../config/dev.env')
+        }),
+        new webpack.HotModuleReplacementPlugin(),
+        new webpack.NamedModulesPlugin(), // HMR shows correct file names in console on update.
+        new webpack.NoEmitOnErrorsPlugin(),
+        // copy custom static assets
+        new CopyWebpackPlugin([{
+            from: path.resolve(__dirname, '../static'),
+            to: config.dev.assetsSubDirectory,
+            ignore: ['.*']
+        }]),
+        new FriendlyErrorsPlugin({
+            compilationSuccessInfo: {
+                messages: [`Your application is running here: http://${config.dev.host}:${config.dev.port}`],
+            },
+            onErrors: config.dev.notifyOnErrors ?
+                utils.createNotifierCallback() :
+                undefined
+        })
+    ]
+}
