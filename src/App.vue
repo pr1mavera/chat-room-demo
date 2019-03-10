@@ -7,6 +7,9 @@
 <script>
 export default {
     name: 'App',
+    components: {
+
+    },
     data() {
         return {
             name: 123
